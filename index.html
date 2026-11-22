@@ -55,6 +55,39 @@ input{padding:10px;border:1px solid #b9c8da;border-radius:8px;width:100%;min-wid
  <div class="number" id="number" aria-live="polite">1.374</div>
 </section>
 
+
+<section class="panel" id="number-editor" style="display:none">
+  <b>Neue Zahl eingeben</b>
+  <input id="number-input"
+         type="text"
+         inputmode="none"
+         readonly
+         placeholder="Zahl eingeben"
+         style="font-size:28px;text-align:center;font-weight:bold;margin:10px 0">
+
+  <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:8px">
+    <button class="control" data-key="1">1</button>
+    <button class="control" data-key="2">2</button>
+    <button class="control" data-key="3">3</button>
+    <button class="control" data-key="4">4</button>
+    <button class="control" data-key="5">5</button>
+    <button class="control" data-key="6">6</button>
+    <button class="control" data-key="7">7</button>
+    <button class="control" data-key="8">8</button>
+    <button class="control" data-key="9">9</button>
+    <button class="control minus" data-key="clear">C</button>
+    <button class="control" data-key="0">0</button>
+    <button class="control minus" data-key="back">⌫</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+    <button class="control minus" id="cancel-edit">Abbrechen</button>
+    <button class="control" id="apply-edit">Übernehmen</button>
+  </div>
+  <div id="edit-message" style="font-size:13px;margin-top:8px"></div>
+</section>
+
+
 <section class="panel">
  <div class="grid names" id="names"></div>
  <div class="grid" id="plus"></div>
@@ -95,18 +128,30 @@ function render(){
  el('minus').innerHTML=powers.map((p,i)=>`<button class="control minus" data-sub="${i}" aria-label="${labels[i]} verringern">−</button>`).join('');
  el('digits').innerHTML=powers.map(p=>`<div class="digit">${Math.floor(value/p)%10}</div>`).join('');
 
- const rows=powers.map((p,i)=>{
+
+const rows=powers.map((p,i)=>{
    const d=Math.floor(value/p)%10;
-   if(!d)return '';
+
+   // Führende Nullstellen bleiben ausgeblendet.
+   // Alle Stellen ab der höchsten belegten Stelle werden gezeigt.
+   const highest=powers.findIndex(q=>Math.floor(value/q)%10!==0);
+
+   if(highest===-1 || i<highest)return '';
+
    const part=d*p;
+
    const cells=powers.map(q=>{
      const digit=Math.floor(part/q)%10;
-     return `<div>${digit || ''}</div>`;
+     return `<div>${digit}</div>`;
    }).join('');
-   return `<div class="partrow"><div class="parts">${cells}</div><div class="partvalue">${fmt(part)}</div></div>`;
- }).join('');
- el('parts').innerHTML=rows||'<div style="text-align:center">0</div>';
-}
+
+   return `<div class="partrow">
+     <div class="parts">${cells}</div>
+     <div class="partvalue">${fmt(part)}</div>
+   </div>`;
+}).join('');
+el('parts').innerHTML=rows||'<div style="text-align:center">0</div>';
+
 
 document.addEventListener('click',e=>{
  const a=e.target.closest('[data-add]');
@@ -160,8 +205,68 @@ document.querySelectorAll('[data-op]').forEach(btn=>{
 if('serviceWorker' in navigator){
  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
 }
+
+
+const editor=document.getElementById('number-editor');
+const numberInput=document.getElementById('number-input');
+
+document.getElementById('number').style.cursor='pointer';
+document.getElementById('number').title='Tippen zum Ändern';
+
+document.getElementById('number').addEventListener('click',()=>{
+  numberInput.value=String(value);
+  editor.style.display='block';
+  document.getElementById('edit-message').textContent='';
+  numberInput.scrollIntoView({behavior:'smooth',block:'nearest'});
+});
+
+editor.addEventListener('click',e=>{
+  const key=e.target.closest('[data-key]');
+  if(!key)return;
+
+  const action=key.dataset.key;
+  let current=numberInput.value;
+
+  if(action==='clear'){
+    current='';
+  }else if(action==='back'){
+    current=current.slice(0,-1);
+  }else if(current.length<6){
+    current+=action;
+  }
+
+  numberInput.value=current;
+});
+
+document.getElementById('cancel-edit').onclick=()=>{
+  editor.style.display='none';
+};
+
+document.getElementById('apply-edit').onclick=()=>{
+  const raw=numberInput.value.trim();
+  const msg=document.getElementById('edit-message');
+
+  if(raw==='' || !/^\d+$/.test(raw)){
+    msg.textContent='Bitte eine gültige Zahl eingeben.';
+    return;
+  }
+
+  const newValue=Number(raw);
+
+  if(newValue>999999){
+    msg.textContent='Maximal 999.999 erlaubt.';
+    return;
+  }
+
+  value=newValue;
+  render();
+  editor.style.display='none';
+  document.getElementById('message').textContent=
+    'Neue Zahl übernommen: '+fmt(value);
+};
+
+
 render();
 </script>
 </body>
 </html>
-
