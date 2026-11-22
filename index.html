@@ -115,158 +115,234 @@ input{padding:10px;border:1px solid #b9c8da;border-radius:8px;width:100%;min-wid
 </div>
 
 <script>
-const powers=[100000,10000,1000,100,10,1];
-const labels=['100.000er','10.000er','1.000er','Hunderter','Zehner','Einer'];
-let value=1374;
-const fmt=n=>Math.trunc(n).toLocaleString('de-DE');
-const el=id=>document.getElementById(id);
 
-function render(){
- el('number').textContent=fmt(value);
- el('names').innerHTML=labels.map(x=>`<div>${x}</div>`).join('');
- el('plus').innerHTML=powers.map((p,i)=>`<button class="control" data-add="${i}" aria-label="${labels[i]} erhöhen">+</button>`).join('');
- el('minus').innerHTML=powers.map((p,i)=>`<button class="control minus" data-sub="${i}" aria-label="${labels[i]} verringern">−</button>`).join('');
- el('digits').innerHTML=powers.map(p=>`<div class="digit">${Math.floor(value/p)%10}</div>`).join('');
+const powers = [100000,10000,1000,100,10,1];
+const labels = ['100.000er','10.000er','1.000er','Hunderter','Zehner','Einer'];
 
+let value = 1374;
 
-const rows=powers.map((p,i)=>{
-   const d=Math.floor(value/p)%10;
+const fmt = n => Math.trunc(n).toLocaleString('de-DE');
+const el = id => document.getElementById(id);
 
-   // Führende Nullstellen bleiben ausgeblendet.
-   // Alle Stellen ab der höchsten belegten Stelle werden gezeigt.
-   const highest=powers.findIndex(q=>Math.floor(value/q)%10!==0);
+const editor = el('number-editor');
+const numberInput = el('number-input');
 
-   if(highest===-1 || i<highest)return '';
+// Zahl und Stellenwertdarstellung aktualisieren
+function render() {
+  el('number').textContent = fmt(value);
 
-   const part=d*p;
+  el('names').innerHTML =
+    labels.map(x => `<div>${x}</div>`).join('');
 
-   const cells=powers.map(q=>{
-     const digit=Math.floor(part/q)%10;
-     return `<div>${digit}</div>`;
-   }).join('');
+  el('plus').innerHTML = powers.map((p,i) =>
+    `<button class="control" data-add="${i}">+</button>`
+  ).join('');
 
-   return `<div class="partrow">
-     <div class="parts">${cells}</div>
-     <div class="partvalue">${fmt(part)}</div>
-   </div>`;
-}).join('');
-el('parts').innerHTML=rows||'<div style="text-align:center">0</div>';
+  el('minus').innerHTML = powers.map((p,i) =>
+    `<button class="control minus" data-sub="${i}">−</button>`
+  ).join('');
 
+  el('digits').innerHTML = powers.map(p =>
+    `<div class="digit">${Math.floor(value/p)%10}</div>`
+  ).join('');
 
-document.addEventListener('click',e=>{
- const a=e.target.closest('[data-add]');
- const s=e.target.closest('[data-sub]');
- if(a){
-  const p=powers[Number(a.dataset.add)];
-  if(value+p<=999999)value+=p;
-  else el('message').textContent='Die Höchstgrenze von 999.999 ist erreicht.';
-  render();
- }
- if(s){
-  const p=powers[Number(s.dataset.sub)];
-  if(value>=p)value-=p;
-  else el('message').textContent='Ein negativer Wert ist nicht möglich.';
-  render();
- }
-});
+  // Höchste belegte Stelle ermitteln
+  const highest = powers.findIndex(p =>
+    Math.floor(value/p)%10 !== 0
+  );
 
-el('reset').onclick=()=>{
- value=0;
- el('operand').value='';
- el('message').textContent='Zahl zurückgesetzt.';
- render();
-};
+  // Zerlegung mit korrekt ausgerichteten Nullstellen
+  const rows = powers.map((p,i) => {
+    if(highest === -1 || i < highest) return '';
 
-document.querySelectorAll('[data-op]').forEach(btn=>{
- btn.onclick=()=>{
-  const raw=el('operand').value;
-  if(raw.trim()===''){el('message').textContent='Bitte eine Zahl eingeben.';return;}
-  const n=Number(raw);
-  if(!Number.isFinite(n)){el('message').textContent='Ungültige Zahl.';return;}
-  let r;
-  switch(btn.dataset.op){
-   case 'add':r=value+n;break;
-   case 'sub':r=value-n;break;
-   case 'mul':r=value*n;break;
-   case 'div':
-    if(n===0){el('message').textContent='Division durch null ist nicht möglich.';return;}
-    r=value/n;break;
-  }
-  if(!Number.isFinite(r)||r<0||r>999999){
-   el('message').textContent='Ergebnis außerhalb des Zahlenbereichs 0 bis 999.999.';
-   return;
-  }
-  value=Math.trunc(r);
-  render();
-  el('message').textContent='Ergebnis: '+fmt(value);
- };
-});
+    const digit = Math.floor(value/p)%10;
+    const part = digit*p;
 
-if('serviceWorker' in navigator){
- window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
+    const cells = powers.map((q,j) => {
+      if(j < i) return '<div></div>';
+
+      return `<div>${Math.floor(part/q)%10}</div>`;
+    }).join('');
+
+    return `
+      <div class="partrow">
+        <div class="parts">${cells}</div>
+        <div class="partvalue">${fmt(part)}</div>
+      </div>
+    `;
+  }).join('');
+
+  el('parts').innerHTML =
+    rows || '<div style="text-align:center">0</div>';
 }
 
+// Plus und Minus: Nur EIN Ereignislistener für die gesamte App
+document.addEventListener('click', e => {
+  const add = e.target.closest('[data-add]');
+  const sub = e.target.closest('[data-sub]');
 
-const editor=document.getElementById('number-editor');
-const numberInput=document.getElementById('number-input');
+  if(add) {
+    const p = powers[Number(add.dataset.add)];
 
-document.getElementById('number').style.cursor='pointer';
-document.getElementById('number').title='Tippen zum Ändern';
-
-document.getElementById('number').addEventListener('click',()=>{
-  numberInput.value=String(value);
-  editor.style.display='block';
-  document.getElementById('edit-message').textContent='';
-  numberInput.scrollIntoView({behavior:'smooth',block:'nearest'});
-});
-
-editor.addEventListener('click',e=>{
-  const key=e.target.closest('[data-key]');
-  if(!key)return;
-
-  const action=key.dataset.key;
-  let current=numberInput.value;
-
-  if(action==='clear'){
-    current='';
-  }else if(action==='back'){
-    current=current.slice(0,-1);
-  }else if(current.length<6){
-    current+=action;
+    if(value+p <= 999999) {
+      value += p;
+      render();
+    } else {
+      el('message').textContent =
+        'Die Höchstgrenze von 999.999 ist erreicht.';
+    }
   }
 
-  numberInput.value=current;
+  if(sub) {
+    const p = powers[Number(sub.dataset.sub)];
+
+    if(value >= p) {
+      value -= p;
+      render();
+    } else {
+      el('message').textContent =
+        'Ein negativer Wert ist nicht möglich.';
+    }
+  }
 });
 
-document.getElementById('cancel-edit').onclick=()=>{
-  editor.style.display='none';
+// Neustart
+el('reset').onclick = () => {
+  value = 0;
+  el('operand').value = '';
+  el('message').textContent = 'Zahl zurückgesetzt.';
+  render();
 };
 
-document.getElementById('apply-edit').onclick=()=>{
-  const raw=numberInput.value.trim();
-  const msg=document.getElementById('edit-message');
+// Rechenarten
+document.querySelectorAll('[data-op]').forEach(btn => {
+  btn.onclick = () => {
+    const raw = el('operand').value;
 
-  if(raw==='' || !/^\d+$/.test(raw)){
-    msg.textContent='Bitte eine gültige Zahl eingeben.';
+    if(raw.trim() === '') {
+      el('message').textContent =
+        'Bitte eine Zahl eingeben.';
+      return;
+    }
+
+    const n = Number(raw);
+
+    if(!Number.isFinite(n)) {
+      el('message').textContent = 'Ungültige Zahl.';
+      return;
+    }
+
+    let result;
+
+    switch(btn.dataset.op) {
+      case 'add':
+        result = value+n;
+        break;
+      case 'sub':
+        result = value-n;
+        break;
+      case 'mul':
+        result = value*n;
+        break;
+      case 'div':
+        if(n === 0) {
+          el('message').textContent =
+            'Division durch null ist nicht möglich.';
+          return;
+        }
+        result = value/n;
+        break;
+    }
+
+    if(!Number.isFinite(result) ||
+       result < 0 || result > 999999) {
+      el('message').textContent =
+        'Ergebnis außerhalb des Zahlenbereichs 0 bis 999.999.';
+      return;
+    }
+
+    value = Math.trunc(result);
+    render();
+
+    el('message').textContent =
+      'Ergebnis: '+fmt(value);
+  };
+});
+
+// Zahleneingabe öffnen
+el('number').style.cursor = 'pointer';
+el('number').title = 'Tippen zum Ändern';
+
+el('number').addEventListener('click', () => {
+  numberInput.value = String(value);
+  editor.style.display = 'block';
+  el('edit-message').textContent = '';
+  numberInput.scrollIntoView({
+    behavior:'smooth',
+    block:'nearest'
+  });
+});
+
+// Eigene Zifferntastatur
+editor.addEventListener('click', e => {
+  const key = e.target.closest('[data-key]');
+  if(!key) return;
+
+  let current = numberInput.value;
+  const action = key.dataset.key;
+
+  if(action === 'clear') {
+    current = '';
+  } else if(action === 'back') {
+    current = current.slice(0,-1);
+  } else if(current.length < 6) {
+    current += action;
+  }
+
+  numberInput.value = current;
+});
+
+// Abbrechen
+el('cancel-edit').onclick = () => {
+  editor.style.display = 'none';
+};
+
+// Neue Zahl übernehmen
+el('apply-edit').onclick = () => {
+  const raw = numberInput.value.trim();
+  const msg = el('edit-message');
+
+  if(raw === '' || !/^\d+$/.test(raw)) {
+    msg.textContent = 'Bitte eine gültige Zahl eingeben.';
     return;
   }
 
-  const newValue=Number(raw);
+  const newValue = Number(raw);
 
-  if(newValue>999999){
-    msg.textContent='Maximal 999.999 erlaubt.';
+  if(newValue > 999999) {
+    msg.textContent = 'Maximal 999.999 erlaubt.';
     return;
   }
 
-  value=newValue;
+  value = newValue;
   render();
-  editor.style.display='none';
-  document.getElementById('message').textContent=
+
+  editor.style.display = 'none';
+
+  el('message').textContent =
     'Neue Zahl übernommen: '+fmt(value);
 };
 
-
+// App starten
 render();
+
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(console.error);
+  });
+}
+
 </script>
 </body>
 </html>
