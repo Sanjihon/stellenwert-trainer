@@ -1,5 +1,5 @@
 
-const CACHE = 'stellenwert-trainer-v1';
+const CACHE = 'stellenwert-trainer-v3';
 const FILES = [
   './',
   './index.html',
@@ -37,4 +37,3 @@ self.addEventListener('fetch', event => {
     )
   );
 });
-
