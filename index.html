@@ -1,0 +1,167 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#172b4d">
+<meta name="description" content="Interaktiver Stellenwert-Trainer">
+<link rel="manifest" href="manifest.json">
+<title>Stellenwert-Trainer</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#eef2f7;color:#172b4d}
+.app{max-width:1100px;margin:auto;padding:12px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+h1{font-size:20px;margin:4px 0}
+button,input{font:inherit}
+button{cursor:pointer;border:0;border-radius:9px;padding:10px}
+.reset{background:#dce5f2}
+.main{background:white;border-radius:15px;padding:12px;margin:10px 0;text-align:center}
+.number{font-size:clamp(48px,10vw,90px);font-weight:800;letter-spacing:3px}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;text-align:center}
+.panel{background:white;padding:12px;border-radius:14px;margin:10px 0}
+.names{font-size:clamp(10px,2vw,14px);color:#52647d;font-weight:bold}
+.digit{font-size:clamp(27px,5vw,46px);font-weight:bold;padding:5px}
+.control{width:100%;font-size:25px;font-weight:bold;background:#dce9ff;color:#174c96;min-height:43px}
+.minus{background:#e8edf4;color:#263b58}
+.parts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;text-align:center;font-size:clamp(17px,3vw,24px);font-weight:bold}
+.partrow{margin:8px 0}
+.partvalue{font-size:13px;color:#61718a;text-align:right;margin-top:2px}
+input{padding:10px;border:1px solid #b9c8da;border-radius:8px;width:100%;min-width:0}
+.calc{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:7px}
+.calc button{background:#dce9ff;font-weight:bold;font-size:20px}
+#message{font-size:13px;color:#52647d;margin-top:8px}
+@media(orientation:landscape){
+ .app{padding:8px 16px}
+ .main{padding:5px;margin:6px 0}
+ .number{font-size:clamp(45px,9vh,75px)}
+ .panel{padding:8px;margin:6px 0}
+ .control{min-height:36px}
+ .digit{padding:1px}
+ .partrow{margin:3px 0}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+ <div><h1>Stellenwert-Trainer</h1><small>Dezimalsystem bis 999.999</small></div>
+ <button class="reset" id="reset">↺ Neustart</button>
+</header>
+
+<section class="main">
+ <div style="font-size:13px;color:#61718a">AKTUELLE ZAHL</div>
+ <div class="number" id="number" aria-live="polite">1.374</div>
+</section>
+
+<section class="panel">
+ <div class="grid names" id="names"></div>
+ <div class="grid" id="plus"></div>
+ <div class="grid" id="digits"></div>
+ <div class="grid" id="minus"></div>
+ <div style="text-align:center;font-size:12px;color:#61718a;margin-top:7px">Plus erhöht · Minus verringert den jeweiligen Stellenwert</div>
+</section>
+
+<section class="panel">
+ <b>Zerlegung der Zahl</b>
+ <div id="parts" style="margin-top:8px"></div>
+</section>
+
+<section class="panel">
+ <b>Rechenfeld</b>
+ <div class="calc" style="margin-top:9px">
+  <input id="operand" type="number" step="any" placeholder="Zweite Zahl" aria-label="Zweite Zahl">
+  <button data-op="add">+</button>
+  <button data-op="sub">−</button>
+  <button data-op="mul">×</button>
+  <button data-op="div">÷</button>
+ </div>
+ <div id="message">Zahl eingeben und Rechenart auswählen.</div>
+</section>
+</div>
+
+<script>
+const powers=[100000,10000,1000,100,10,1];
+const labels=['100.000er','10.000er','1.000er','Hunderter','Zehner','Einer'];
+let value=1374;
+const fmt=n=>Math.trunc(n).toLocaleString('de-DE');
+const el=id=>document.getElementById(id);
+
+function render(){
+ el('number').textContent=fmt(value);
+ el('names').innerHTML=labels.map(x=>`<div>${x}</div>`).join('');
+ el('plus').innerHTML=powers.map((p,i)=>`<button class="control" data-add="${i}" aria-label="${labels[i]} erhöhen">+</button>`).join('');
+ el('minus').innerHTML=powers.map((p,i)=>`<button class="control minus" data-sub="${i}" aria-label="${labels[i]} verringern">−</button>`).join('');
+ el('digits').innerHTML=powers.map(p=>`<div class="digit">${Math.floor(value/p)%10}</div>`).join('');
+
+ const rows=powers.map((p,i)=>{
+   const d=Math.floor(value/p)%10;
+   if(!d)return '';
+   const part=d*p;
+   const cells=powers.map(q=>{
+     const digit=Math.floor(part/q)%10;
+     return `<div>${digit || ''}</div>`;
+   }).join('');
+   return `<div class="partrow"><div class="parts">${cells}</div><div class="partvalue">${fmt(part)}</div></div>`;
+ }).join('');
+ el('parts').innerHTML=rows||'<div style="text-align:center">0</div>';
+}
+
+document.addEventListener('click',e=>{
+ const a=e.target.closest('[data-add]');
+ const s=e.target.closest('[data-sub]');
+ if(a){
+  const p=powers[Number(a.dataset.add)];
+  if(value+p<=999999)value+=p;
+  else el('message').textContent='Die Höchstgrenze von 999.999 ist erreicht.';
+  render();
+ }
+ if(s){
+  const p=powers[Number(s.dataset.sub)];
+  if(value>=p)value-=p;
+  else el('message').textContent='Ein negativer Wert ist nicht möglich.';
+  render();
+ }
+});
+
+el('reset').onclick=()=>{
+ value=0;
+ el('operand').value='';
+ el('message').textContent='Zahl zurückgesetzt.';
+ render();
+};
+
+document.querySelectorAll('[data-op]').forEach(btn=>{
+ btn.onclick=()=>{
+  const raw=el('operand').value;
+  if(raw.trim()===''){el('message').textContent='Bitte eine Zahl eingeben.';return;}
+  const n=Number(raw);
+  if(!Number.isFinite(n)){el('message').textContent='Ungültige Zahl.';return;}
+  let r;
+  switch(btn.dataset.op){
+   case 'add':r=value+n;break;
+   case 'sub':r=value-n;break;
+   case 'mul':r=value*n;break;
+   case 'div':
+    if(n===0){el('message').textContent='Division durch null ist nicht möglich.';return;}
+    r=value/n;break;
+  }
+  if(!Number.isFinite(r)||r<0||r>999999){
+   el('message').textContent='Ergebnis außerhalb des Zahlenbereichs 0 bis 999.999.';
+   return;
+  }
+  value=Math.trunc(r);
+  render();
+  el('message').textContent='Ergebnis: '+fmt(value);
+ };
+});
+
+if('serviceWorker' in navigator){
+ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.error));
+}
+render();
+</script>
+</body>
+</html>
+

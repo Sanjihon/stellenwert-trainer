@@ -1,0 +1,21 @@
+
+{
+  "name": "Stellenwert-Trainer",
+  "short_name": "Stellenwerte",
+  "description": "Interaktiver Stellenwert-Trainer",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#eef2f7",
+  "theme_color": "#172b4d",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
+
