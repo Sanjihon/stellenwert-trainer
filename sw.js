@@ -1,5 +1,5 @@
 
-const CACHE = 'stellenwert-trainer-v3';
+const CACHE = 'stellenwert-trainer-v4';
 const FILES = [
   './',
   './index.html',
